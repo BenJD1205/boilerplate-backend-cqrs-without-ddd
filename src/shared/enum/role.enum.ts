@@ -1,0 +1,6 @@
+export enum ERole {
+  ADMIN = 'ADMIN',
+  BRANCH_MANAGER = 'BRANCH_MANAGER',
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  CUSTOMER = 'CUSTOMER',
+}
