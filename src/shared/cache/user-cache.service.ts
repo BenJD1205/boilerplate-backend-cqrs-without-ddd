@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { CacheService } from '@/core/services/cache.service.js';
 import { USER_REPOSITORY } from '@/modules/user/interfaces/user.repository.interface.js';
 import type { UserRepository } from '@/modules/user/interfaces/user.repository.interface.js';
@@ -20,7 +19,7 @@ export class UserCacheService {
    * Get user by ID with cache. Only one request loads from DB,
    * others wait for cached result.
    */
-  async getUserById(userId: string): Promise<UserEntity | null> {
+  getUserById(userId: string): Promise<UserEntity | null> {
     return this.cache.getOrLoad(
       USER_CACHE_KEY(userId),
       () => this.userRepository.findById(userId),
