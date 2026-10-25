@@ -50,6 +50,8 @@
     "*.{json,jsonc,yml,yaml,md,mdx}": "prettier --write"
   },
   "dependencies": {
+    "@keyv/redis": "^6.1.0",
+    "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs/cache-manager": "^12.0.1",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.1",
@@ -69,6 +71,7 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^18.0.9",
     "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
     "joi": "^18.3.0",
     "pg": "^8.23.1",
     "redis": "^6.3.0",

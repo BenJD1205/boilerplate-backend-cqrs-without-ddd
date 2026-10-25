@@ -5,8 +5,16 @@ import {
   Type,
   NestMiddleware,
 } from '@nestjs/common';
+import { ModulesModule } from './modules/modules.module.js';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import {
+  ThrottlerGuard,
+  ThrottlerModule,
+  ThrottlerModuleOptions,
+} from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { CacheModule } from '@nestjs/cache-manager';
+import { createKeyv } from '@keyv/redis';
 import { TimeoutInterceptor } from './core/http/interceptors/timeout.interceptor.js';
 import { ErrorsInterceptor } from './core/http/interceptors/errors.interceptor.js';
 import { TransformInterceptor } from './core/http/interceptors/transform.interceptor.js';
@@ -15,17 +23,19 @@ import { RequestIdMiddleware } from './core/http/middlewares/request-id.middlewa
 import { createObserveModule } from '@nestjs/observe';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
-import { UserModule } from './modules/user/user.module.js';
 import { HttpExceptionFilter } from './core/http/filters/http-exeception.filter.js';
 import { join } from 'node:path';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from './core/infrastructure/database/database.module.js';
+import {
+  RedisModule,
+  RedisService,
+} from './core/infrastructure/cache/redis.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
   imports: [
-    UserModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
     // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com,
     // then run `npx @nestjs/observe link` to write your key pair into .env.
@@ -39,6 +49,48 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       serviceId: 'boilerplate-backend-cqrs',
     }),
     DatabaseModule,
+    ModulesModule,
+    RedisModule,
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule, RedisModule],
+      inject: [ConfigService, RedisService],
+      useFactory: (
+        config: ConfigService,
+        redis: RedisService,
+      ): ThrottlerModuleOptions => ({
+        storage: new ThrottlerStorageRedisService(redis),
+        skipIf: (context) => context.getType() !== 'http',
+        throttlers: [
+          {
+            ttl: Number(config.get('THROTTLE_TTL_MS', 60000)),
+            limit: Number(config.get('THROTTLE_LIMIT', 100)),
+          },
+        ],
+      }),
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        stores: [
+          createKeyv(
+            {
+              socket: {
+                host: configService.get<string>('REDIS_HOST', 'localhost'),
+                port: Number(configService.get('REDIS_PORT', 6379)),
+              },
+              password:
+                configService.get<string>('REDIS_PASSWORD') || undefined,
+              username:
+                configService.get<string>('REDIS_USERNAME') || undefined,
+            },
+            { namespace: 'renthub-cache' },
+          ),
+        ],
+        ttl: 60000,
+      }),
+    }),
   ],
   controllers: [AppController],
   providers: [
